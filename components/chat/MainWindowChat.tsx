@@ -9,7 +9,7 @@ const MainWindowChat = () => {
   if (!activeConversationId) return null
 
   return (
-    <div className="flex-1 bg-gray-50 overflow-y-auto p-4">
+    <div className="flex-1  overflow-y-auto p-4">
       <MessageCard />
     </div>
   )

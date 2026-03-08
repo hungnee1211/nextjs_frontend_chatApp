@@ -1,12 +1,26 @@
-import { UserPlus } from 'lucide-react'
+"use client"
+import { UserPlus } from "lucide-react"
+import { useState } from "react"
+import AddFriendForm from "../form/AddFriendForm"
 
+const CreateDirectChat = ({ currentUserId }: { currentUserId: string }) => {
 
-const CreateDirectChat = () => {
+  const [open, setOpen] = useState(false)
+
   return (
-    <UserPlus
-    size={16}
-    
-    />
+    <>
+      <UserPlus
+        size={18}
+        className='cursor-pointer'
+        onClick={() => setOpen(true)}
+      />
+
+      <AddFriendForm
+        open={open}
+        onClose={() => setOpen(false)}
+       
+      />
+    </>
   )
 }
 

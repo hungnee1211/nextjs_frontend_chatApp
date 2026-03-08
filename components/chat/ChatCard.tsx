@@ -5,6 +5,7 @@ import axios from "axios"
 import { useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar"
+import { useSocketStore } from "@/store/useSocketStore"
 
 interface Props {
   conversationId: string
@@ -20,18 +21,17 @@ const ChatCard = ({ conversationId }: Props) => {
     
   } = useChatStore()
 
+
   const conversation = conversations.find(c => c._id === conversationId)
 
   const handleClick = async () => {
-    if (!conversationId) return
+  if (!conversationId) return
 
-    setActiveConversationId(conversationId)
-    handleFetchMessage(conversationId)
+  setActiveConversationId(conversationId)
 
-    
+  await handleFetchMessage(conversationId)
 
-    
-  }
+}
 
   const handleFetchMessage = async (conversationId : string) => {
       const res = await axios.get(`http://localhost:5001/api/conversation/${conversationId}/message` , {

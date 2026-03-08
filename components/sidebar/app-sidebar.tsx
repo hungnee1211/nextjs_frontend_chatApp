@@ -58,7 +58,7 @@ export function AppSidebar({
           <AccordionTrigger>   
             <div className="flex items-center justify-between w-full px-3">
                DIRECT CHAT 
-               <CreateDirectChat />
+               <CreateDirectChat currentUserId={user._id} />
             </div>
            </AccordionTrigger>
            

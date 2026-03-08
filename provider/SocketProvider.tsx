@@ -1,5 +1,6 @@
 "use client"
 
+import { useSocketLastMessage } from "@/hooks/useLastMessage"
 import { useSocket } from "@/hooks/useSocket"
 import { useSocketMessage } from "@/hooks/useSocketMessage"
 import { useChatStore } from "@/store/useChatStore"
@@ -10,6 +11,7 @@ const SocketProvider = ({children } :{children:ReactNode}) => {
 
   useSocket(currentUserId || undefined)
   useSocketMessage()
+  useSocketLastMessage()
 
   return children
 }

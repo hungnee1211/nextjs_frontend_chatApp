@@ -15,17 +15,24 @@ import SocketProvider from "@/provider/SocketProvider"
 import { SmartLayout } from "../SmartLayout"
 import FooterWindowChat from "../chat/FooterWindowChat"
 import NavbarWindowChat from "../chat/NavbarWindowChat"
-import { Command } from "lucide-react"
+import { Bell, Command } from "lucide-react"
 import { NavUser } from "../sidebar/nav-user"
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
+import { Button } from "../ui/button"
+import { toast } from "sonner"
+import { useSocketStore } from "@/store/useSocketStore"
+import { useSocketMessage } from "@/hooks/useSocketMessage"
+
 
 const ChatAppPage = () => {
 
 
   const [user, setUser] = useState<User | null>(null)
+  const [listRequestFriend , setListRequestFriend] = useState([])
   const [loading, setLoading] = useState(true)
-  const { conversations, currentUserId, setConversations, setCurrentUserId } = useChatStore()
+  const { conversations, currentUserId, setConversations, setCurrentUserId , addConversation } = useChatStore()
 
-
+  useSocketMessage()
 
   useEffect(() => {
 
@@ -52,6 +59,78 @@ const ChatAppPage = () => {
 
   }, [])
 
+  const fetchListRequestAddFriend = async () => {
+    try {
+        const res = await axios.get("http://localhost:5001/api/friend/request" , {withCredentials : true})
+        if(res.status === 200 || res.status === 201) {
+          setListRequestFriend(res.data)
+          console.log(res.data)
+        }
+        
+    } catch (error) {
+      console.log("Lỗi lấy ds kết bạn" , error)
+    }
+  }
+
+  useEffect(() => {
+
+    fetchListRequestAddFriend()
+    
+
+  } , [])
+
+ const handleAcceptFriendRequest = async (requestId:string) => {
+  try {
+    console.log("aloo")
+    console.log(requestId ,"rqId")
+    const res = await axios.post(`http://localhost:5001/api/friend/request/${requestId}/accept` , {} ,
+      {withCredentials:true}
+    )
+
+    toast.success("Kết bạn thành công!")
+    console.log("friend rq..." ,requestId)
+    
+    
+    if(res.status === 200 || res.status === 201){
+      const newList = await axios.get("http://localhost:5001/api/conversation" , {withCredentials:true})
+      setConversations(newList.data?.conversations)
+    }
+    
+    console.log(listRequestFriend , "list rq fr")
+    setListRequestFriend(prev => 
+      prev.filter((r:any) => r._id !== requestId)
+    )
+    
+
+
+  } catch (error) {
+    toast.error("Lỗi accept")
+    console.log(error)
+  }
+}
+
+   const handleDeclineFriendRequest = async (requestId: string) => {
+  try {
+    await axios.post(
+      `http://localhost:5001/api/friend/request/${requestId}/decline`,
+      {},
+      { withCredentials: true }
+    )
+
+    toast.success("Đã từ chối lời mời kết bạn")
+
+    // Remove khỏi danh sách request
+    setListRequestFriend(prev =>
+      prev.filter((req:any) => req._id !== requestId)
+    )
+
+  } catch (error) {
+    toast.error("Từ chối lời mời thất bại")
+    console.log(error)
+  }
+}
+
+
   if (loading || !user) return null
 
 
@@ -75,7 +154,7 @@ const ChatAppPage = () => {
           <SmartLayout>
             <SmartLayout.Footer >
               {/* HEADER */}
-              <div className="border-b px-4 py-3 h-16 flex items-center">
+              <div className="border-b px-4 py-3 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-black text-white">
                     <Command className="w-4 h-4" />
@@ -86,7 +165,48 @@ const ChatAppPage = () => {
                     <p className="text-xs text-gray-400">Talk with friends</p>
                   </div>
                 </div>
+
+                <Popover>
+                  <PopoverTrigger asChild><Button size="icon" variant="outline" className="hover:bg-white!"> <Bell/> </Button></PopoverTrigger>
+                  <PopoverContent className="overflow-y-scroll max-h-72 scrollbar-none min-w-[450px] gap-3">
+                  {
+                    listRequestFriend?.length > 0 ? listRequestFriend.map((rq : any) => (
+                      <div 
+                      key={rq._id}
+                      className="h-24 py-2 px-3 border border-gray-200 rounded-md flex justify-between gap-2">
+                        <div className="flex flex-col gap-0.5 ">
+                          <span className="italic text-sm font-medium text-gray-400">FROM:&nbsp;{
+                            (rq?.from?.displayName &&  rq?.from?.displayName?.trim() !== "") ? rq.from.displayName : "No name"
+                            }&nbsp;-&nbsp;({
+                            (rq?.from?.username &&  rq?.from?.username?.trim() !== "") ? rq.from.username : "No name"
+                            })</span>
+                          <span className="text-base font-semibold text-gray-800">{rq?.message}</span>
+                        </div>
+                        
+
+                        <div className="flex gap-2 ">
+                          <Button 
+                        size="sm" 
+                        onClick={() => handleAcceptFriendRequest(rq._id)}>
+                        Accept
+                        </Button>
+
+                        <Button 
+                        size="sm"
+                        onClick={() => handleDeclineFriendRequest(rq._id)}>
+                        Decline
+                        </Button>
+                        </div>
+                        
+
+                      </div>
+                    )) : <div className="text-sm h-16 text-center w-full text-gray-400">No request found.</div>
+                  }
+                  </PopoverContent>
+                </Popover>
               </div>
+
+
             </SmartLayout.Footer>
             <SmartLayout.Body
               initialSize={450}
