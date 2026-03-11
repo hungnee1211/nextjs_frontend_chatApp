@@ -10,7 +10,7 @@ import { User } from "@/lib/types/user"
 import { useChatStore } from "@/store/useChatStore"
 import ChatWindowSwitcher from "../chat/ChatWindowSwitcher"
 import SocketProvider from "@/provider/SocketProvider"
-import { SmartLayout } from "../SmartLayout"
+import { SmartLayout } from "../custom/SmartLayout"
 import FooterWindowChat from "../chat/FooterWindowChat"
 import NavbarWindowChat from "../chat/NavbarWindowChat"
 
@@ -36,7 +36,7 @@ const ChatAppPage = () => {
   const incomingRequests = useFriendStore(s => s.incomingRequests)
   const setIncomingRequests = useFriendStore(s => s.setIncomingRequests)
   const removeIncomingRequest = useFriendStore(s => s.removeIncomingRequest)
-  
+
   const socket = useSocketStore(s => s.socket);
 
   useSocketMessage()
@@ -82,7 +82,7 @@ const ChatAppPage = () => {
         setIncomingRequests(res.data)
       }
 
-      
+
 
     } catch (error) {
       console.log("Lỗi lấy ds kết bạn", error)
@@ -95,37 +95,37 @@ const ChatAppPage = () => {
   }, [])
 
 
-const handleAcceptFriendRequest = async (requestId: string) => {
-  try {
-    const res = await axios.post(
-      `http://localhost:5001/api/friend/request/${requestId}/accept`,
-      {},
-      { withCredentials: true }
-    );
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    try {
+      const res = await axios.post(
+        `http://localhost:5001/api/friend/request/${requestId}/accept`,
+        {},
+        { withCredentials: true }
+      );
 
-    toast.success("Kết bạn thành công!");
-    
-    // 1. Xóa khỏi danh sách chờ của mình
-    removeIncomingRequest(requestId);
+      toast.success("Kết bạn thành công!");
 
-    // 2. EMIT SOCKET: Báo cho server để server báo cho người kia
-    // Giả sử API trả về thông tin người gửi là res.data.fromUserId
-    if (socket) {
-      socket.emit("accept-friend-request", { 
-        requestId, 
-        fromUserId: res.data.fromUserId, // Bạn cần đảm bảo API trả về ID này
-        friend: res.data.newFriend 
-      });
+      // 1. Xóa khỏi danh sách chờ của mình
+      removeIncomingRequest(requestId);
+
+      // 2. EMIT SOCKET: Báo cho server để server báo cho người kia
+      // Giả sử API trả về thông tin người gửi là res.data.fromUserId
+      if (socket) {
+        socket.emit("accept-friend-request", {
+          requestId,
+          fromUserId: res.data.fromUserId, // Bạn cần đảm bảo API trả về ID này
+          friend: res.data.newFriend
+        });
+      }
+
+      // 3. Cập nhật danh sách chat
+      const newList = await axios.get("http://localhost:5001/api/conversation", { withCredentials: true });
+      setConversations(newList.data?.conversations);
+
+    } catch (error) {
+      toast.error("Lỗi accept");
     }
-
-    // 3. Cập nhật danh sách chat
-    const newList = await axios.get("http://localhost:5001/api/conversation", { withCredentials: true });
-    setConversations(newList.data?.conversations);
-
-  } catch (error) {
-    toast.error("Lỗi accept");
   }
-}
 
   const handleDeclineFriendRequest = async (requestId: string) => {
 
@@ -152,8 +152,8 @@ const handleAcceptFriendRequest = async (requestId: string) => {
 
   return (
 
-      <>
-      
+    <>
+
       <SmartLayout direction="horizontal" className="h-screen">
 
         {/* SIDEBAR */}
@@ -195,61 +195,72 @@ const handleAcceptFriendRequest = async (requestId: string) => {
                     </Button>
                   </PopoverTrigger>
 
-                  <PopoverContent className="overflow-y-scroll max-h-72 min-w-[450px]">
+                  <PopoverContent className="w-[380px] p-0 shadow-xl border-none">
+                    {/* Header của Popover */}
+                    <div className="p-4 border-b bg-muted/50">
+                      <h3 className="font-semibold text-sm tracking-tight">Lời mời kết bạn</h3>
+                    </div>
 
-                    {incomingRequests.length > 0 ? (
-
-                      incomingRequests.map((rq: any) => (
-
-                        <div
-                          key={rq._id}
-                          className="h-24 py-2 px-3 border rounded-md flex justify-between gap-2"
-                        >
-
-                          <div className="flex flex-col gap-1">
-
-                            <span className="text-sm text-gray-400 italic">
-                              FROM: {rq?.from?.displayName || "No name"} (@{rq?.from?.username})
-                            </span>
-
-                            <span className="text-base font-semibold">
-                              {rq?.message}
-                            </span>
-
-                          </div>
-
-                          <div className="flex gap-2">
-
-                            <Button
-                              size="sm"
-                              onClick={() => handleAcceptFriendRequest(rq._id)}
+                    <div className="overflow-y-auto max-h-[400px]">
+                      {incomingRequests.length > 0 ? (
+                        <div className="divide-y divide-border">
+                          {incomingRequests.map((rq: any) => (
+                            <div
+                              key={rq._id}
+                              className="flex items-start gap-3 p-4 hover:bg-muted/30 transition-colors group"
                             >
-                              Accept
-                            </Button>
+                              {/* Avatar Placeholder (Bạn có thể thay bằng component Avatar thực tế) */}
+                              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                {rq?.from?.displayName?.charAt(0) || "U"}
+                              </div>
 
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDeclineFriendRequest(rq._id)}
-                            >
-                              Decline
-                            </Button>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col mb-2">
+                                  <span className="text-sm font-semibold truncate leading-none">
+                                    {rq?.from?.displayName || "Người dùng"}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground mt-1">
+                                    @{rq?.from?.username}
+                                  </span>
+                                </div>
 
-                          </div>
+                                {rq?.message && (
+                                  <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded-md mb-3 italic">
+                                    "{rq.message}"
+                                  </p>
+                                )}
 
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="flex-1 h-8 bg-primary hover:bg-primary/90"
+                                    onClick={() => handleAcceptFriendRequest(rq._id)}
+                                  >
+                                    Chấp nhận
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    className="flex-1 h-8"
+                                    onClick={() => handleDeclineFriendRequest(rq._id)}
+                                  >
+                                    Từ chối
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-
-                      ))
-
-                    ) : (
-
-                      <div className="text-sm h-16 flex items-center justify-center text-gray-400">
-                        No request found
-                      </div>
-
-                    )}
-
+                      ) : (
+                        <div className="py-10 flex flex-col items-center justify-center text-muted-foreground">
+                          <Bell className="w-8 h-8 opacity-20 mb-2" />
+                          <p className="text-sm">Không có lời mời nào</p>
+                        </div>
+                      )}
+                    </div>
                   </PopoverContent>
+
+
 
                 </Popover>
 

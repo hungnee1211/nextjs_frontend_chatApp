@@ -6,6 +6,8 @@ interface ChatStore {
   conversations: Conversation[]
   activeConversationId: string | null
   messagesByConversationId: Record<string, Message[]>
+  openDirect:boolean
+  openGroup:boolean
 
   setCurrentUserId: (id: string) => void
   setConversations: (data: Conversation[]) => void
@@ -15,6 +17,9 @@ interface ChatStore {
   addConversation: (conv: Conversation) => void
   addMessage: (message: Message & { tempId?: string }) => void
   updateLastMessage: (conversationId: string, message: Message) => void
+  setOpenDirect:(value:boolean) => void
+  setOpenGroup:(value:boolean) => void
+  
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -23,6 +28,8 @@ export const useChatStore = create<ChatStore>((set) => ({
   conversations: [],
   activeConversationId: null,
   messagesByConversationId: {},
+  openDirect:false,
+  openGroup:false ,
 
   setCurrentUserId: (id) => set({ currentUserId: id }),
 
@@ -198,6 +205,10 @@ export const useChatStore = create<ChatStore>((set) => ({
 
       return { conversations: updatedConversations }
 
-    })
+    }),
+
+
+    setOpenDirect: (value) => set({ openDirect: value }),
+    setOpenGroup: (value) => set({ openGroup: value }),
 
 }))

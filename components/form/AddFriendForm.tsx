@@ -20,7 +20,7 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
   const [keyword, setKeyword] = useState("")
   const { friends, setFriends } = useFriendStore()
   
-  // ===== LOGIC SOCKET THIẾU =====
+ 
   const socket = useSocketStore(s => s.socket)
   // Giả sử user hiện tại được lưu trong ChatStore hoặc bạn có thể lấy từ đâu đó
   // Nếu chưa có, bạn cần fetch thông tin user hiện tại để gửi đi
@@ -49,7 +49,7 @@ const handleSendFriendRequest = async (id: string) => {
       toast.success("Đã gửi lời mời kết bạn")
 
       if (socket) {
-        // LẤY DỮ LIỆU TỪ res.data.request (vì Backend trả về object này)
+      
         const newRequest = res.data.request 
 
         socket.emit("send-friend-request", {
