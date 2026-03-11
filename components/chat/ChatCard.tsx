@@ -4,83 +4,121 @@ import { useChatStore } from "@/store/useChatStore"
 import axios from "axios"
 import { useMemo } from "react"
 import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar"
-import { useSocketStore } from "@/store/useSocketStore"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar" 
+import { MoreHorizontal, Trash2 } from "lucide-react"
+import { toast } from "sonner"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-interface Props {
-  conversationId: string
-}
-
-const ChatCard = ({ conversationId }: Props) => {
+const ChatCard = ({ conversationId }: { conversationId: string }) => {
   const {
     conversations,
     currentUserId,
     activeConversationId,
     setActiveConversationId,
-    setMessages 
-    
+    setMessages,
+    removeConversation 
   } = useChatStore()
 
+  const conversation = conversations?.find(c => c._id === conversationId)
 
-  const conversation = conversations.find(c => c._id === conversationId)
+  // Chống trắng màn hình nếu conversation bị xóa khỏi store
+  if (!conversation) return null;
 
   const handleClick = async () => {
-  if (!conversationId) return
-
-  setActiveConversationId(conversationId)
-
-  await handleFetchMessage(conversationId)
-
-}
-
-  const handleFetchMessage = async (conversationId : string) => {
-      const res = await axios.get(`http://localhost:5001/api/conversation/${conversationId}/message` , {
-        withCredentials:true})
-
+    setActiveConversationId(conversationId)
+    try {
+      const res = await axios.get(`http://localhost:5001/api/conversation/${conversationId}/message`, {
+        withCredentials: true
+      })
       setMessages(conversationId, res.data.messages)
-      console.log(res)
-      return res
+    } catch (err) { 
+      console.error("Lỗi fetch tin nhắn:", err) 
+    }
   }
 
-  const { name, avatar, lastMsg, unread } = useMemo(() => {
-    const isGroup = conversation?.type === "group"
-    const otherUser = conversation?.participants.find(
-      p => p._id !== currentUserId
-    )
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation() // Ngăn việc click vào nút xóa làm mở cửa sổ chat
+    
+    // ĐÃ BỎ WINDOW.CONFIRM THEO YÊU CẦU
+    try {
+      // Gọi API xóa ở backend
+      const res = await axios.delete(`http://localhost:5001/api/conversation/${conversationId}/delete`, { 
+        withCredentials: true 
+      })
+      
+      if (res.status === 200) {
+        toast.success("Đã xóa cuộc hội thoại")
+        removeConversation(conversationId) // Xóa khỏi danh sách hiển thị
+      }
+    } catch (err) { 
+      toast.error("Không thể xóa hội thoại") 
+      console.error(err)
+    }
+  }
 
+  const info = useMemo(() => {
+    const isGroup = conversation?.type === "group"
+    const otherUser = conversation?.participants?.find(p => p._id !== currentUserId)
+    
     return {
-      name: isGroup ? conversation?.group?.name : otherUser?.displayName,
-      avatar: isGroup ? "/group.png" : otherUser?.avatarUrl ?? "/user.png",
-      lastMsg: conversation?.lastMessage?.content ?? "No message yet",
-      unread: conversation?.unreadCounts?.[currentUserId!] ?? 0
+      name: isGroup ? conversation?.group?.name : (otherUser?.displayName || "Người dùng"),
+      avatar: isGroup ? "/group.png" : (otherUser?.avatarUrl || "/user.png"),
+      lastMsg: conversation?.lastMessage?.content || "Chưa có tin nhắn",
+      unread: conversation?.unreadCounts?.[currentUserId || ""] || 0
     }
   }, [conversation, currentUserId])
 
   return (
     <div
-      className={cn(
-        activeConversationId === conversationId && "bg-gray-100",
-        "flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer rounded-xl transition w-full"
-      )}
       onClick={handleClick}
+      className={cn(
+        "group relative flex items-center gap-3 p-3 cursor-pointer rounded-xl transition-all w-full mb-1",
+        activeConversationId === conversationId ? "bg-gray-100 shadow-sm" : "hover:bg-gray-50"
+      )}
     >
-      <Avatar>
-        <AvatarImage src={avatar} className="rounded-full w-16 h-16" />
-        <AvatarFallback className="rounded-full w-16 h-16">
-          {(name && name[0].toUpperCase()) || "CN"}
-        </AvatarFallback>
-      </Avatar>
-
-      <div className="flex-1 w-full pr-2">
-        <div className="font-semibold text-sm">{name}</div>
-        <div className="w-full text-xs text-gray-500 truncate">{lastMsg}</div>
+      <div className="relative flex-shrink-0">
+        <Avatar className="h-12 w-12 border">
+          <AvatarImage src={info.avatar} className="object-cover rounded-full" />
+          <AvatarFallback className="rounded-full font-bold">{info.name?.[0] || "?"}</AvatarFallback>
+        </Avatar>
+        {info.unread > 0 && (
+          <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white font-bold">
+            {info.unread}
+          </div>
+        )}
       </div>
 
-      {unread > 0 && (
-        <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-          {unread}
-        </div>
-      )}
+      <div className="flex-1 min-w-0 pr-8">
+        <h4 className="font-semibold text-sm truncate text-gray-900">{info.name}</h4>
+        <p className="text-xs text-gray-500 truncate mt-0.5">{info.lastMsg}</p>
+      </div>
+
+      {/* Menu chức năng hiện khi hover */}
+      <div className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button 
+              onClick={(e) => e.stopPropagation()}
+              className="p-1.5 hover:bg-white rounded-full border shadow-sm bg-white/90 transition-colors"
+            >
+              <MoreHorizontal size={16} className="text-gray-600" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem 
+              onClick={handleDelete} 
+              className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer flex items-center gap-2"
+            >
+              <Trash2 size={14} /> Xóa hội thoại
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   )
 }
