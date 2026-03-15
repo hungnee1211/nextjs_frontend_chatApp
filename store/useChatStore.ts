@@ -9,19 +9,24 @@ interface ChatStore {
   openDirect: boolean
   openGroup: boolean
 
+  // Actions
   setCurrentUserId: (id: string) => void
   setConversations: (data: Conversation[]) => void
-  setActiveConversationId: (id: string | null) => void // Chỉnh type để nhận null khi xóa
+  setActiveConversationId: (id: string | null) => void
   setMessages: (conversationId: string, messages: Message[]) => void
-
+  
+  // Conversation Logic
   addConversation: (conv: Conversation) => void
+  updateConversation: (updatedConv: Conversation) => void // Cập nhật khi thêm thành viên/đổi tên
+  removeConversation: (id: string) => void
+  
+  // Message Logic
   addMessage: (message: Message & { tempId?: string }) => void
   updateLastMessage: (conversationId: string, message: Message) => void
+  
+  // UI Logic
   setOpenDirect: (value: boolean) => void
   setOpenGroup: (value: boolean) => void
-
-  // BỔ SUNG: Hàm xóa hội thoại khỏi store
-  removeConversation: (id: string) => void
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -33,8 +38,18 @@ export const useChatStore = create<ChatStore>((set) => ({
   openGroup: false,
 
   setCurrentUserId: (id) => set({ currentUserId: id }),
+  
   setConversations: (data) => set({ conversations: data }),
+  
   setActiveConversationId: (id) => set({ activeConversationId: id }),
+
+  // Cập nhật thông tin chi tiết của một cuộc hội thoại (thêm mem, sửa tên...)
+  updateConversation: (updatedConv) =>
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c._id === updatedConv._id ? { ...c, ...updatedConv } : c
+      ),
+    })),
 
   setMessages: (conversationId, messages) =>
     set((state) => {
@@ -50,32 +65,39 @@ export const useChatStore = create<ChatStore>((set) => ({
                 last.senderInfor?.displayName ||
                 last.displayName ||
                 "Unknown",
-              avatarUrl: last.senderInfor?.avatarUrl || null
-            }
+              avatarUrl: last.senderInfor?.avatarUrl || null,
+            },
           }
         : null
 
       return {
         messagesByConversationId: {
           ...state.messagesByConversationId,
-          [conversationId]: messages
+          [conversationId]: messages,
         },
         conversations: state.conversations.map((conv) =>
           conv._id === conversationId ? { ...conv, lastMessage } : conv
-        )
+        ),
       }
     }),
 
   addConversation: (conv) =>
     set((state) => {
-      const existed = state.conversations.find(c => c._id === conv._id)
-      if (existed) return {}
+      const existed = state.conversations.find((c) => c._id === conv._id)
+      if (existed) {
+        // Nếu đã tồn tại, cập nhật lại để đảm bảo thông tin (như mem mới) là mới nhất
+        return {
+          conversations: state.conversations.map((c) =>
+            c._id === conv._id ? { ...c, ...conv } : c
+          ),
+        }
+      }
       return {
         conversations: [conv, ...state.conversations],
         messagesByConversationId: {
           ...state.messagesByConversationId,
-          [conv._id]: []
-        }
+          [conv._id]: [],
+        },
       }
     }),
 
@@ -85,7 +107,9 @@ export const useChatStore = create<ChatStore>((set) => ({
       let newMsgs = msgs
 
       if (message.tempId) {
-        const index = msgs.findIndex(m => m.tempId === message.tempId || m._id === message.tempId)
+        const index = msgs.findIndex(
+          (m) => m.tempId === message.tempId || m._id === message.tempId
+        )
         if (index !== -1) {
           newMsgs = [...msgs]
           newMsgs[index] = message
@@ -93,7 +117,7 @@ export const useChatStore = create<ChatStore>((set) => ({
           newMsgs = [...msgs, message]
         }
       } else {
-        if (msgs.some(m => m._id === message._id)) return {}
+        if (msgs.some((m) => m._id === message._id)) return {}
         newMsgs = [...msgs, message]
       }
 
@@ -103,21 +127,30 @@ export const useChatStore = create<ChatStore>((set) => ({
         createdAt: message.createdAt,
         sender: {
           _id: message.senderId,
-          displayName: message.senderInfor?.displayName || message.displayName || "Unknown",
-          avatarUrl: message.senderInfor?.avatarUrl || null
-        }
+          displayName:
+            message.senderInfor?.displayName ||
+            message.displayName ||
+            "Unknown",
+          avatarUrl: message.senderInfor?.avatarUrl || null,
+        },
       }
 
       const updatedConversations = state.conversations
-        .map((conv) => (conv._id === message.conversationId ? { ...conv, lastMessage } : conv))
-        .sort((a, b) => new Date(b.lastMessage?.createdAt || "").getTime() - new Date(a.lastMessage?.createdAt || "").getTime())
+        .map((conv) =>
+          conv._id === message.conversationId ? { ...conv, lastMessage } : conv
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.lastMessage?.createdAt || "").getTime() -
+            new Date(a.lastMessage?.createdAt || "").getTime()
+        )
 
       return {
         messagesByConversationId: {
           ...state.messagesByConversationId,
-          [message.conversationId]: newMsgs
+          [message.conversationId]: newMsgs,
         },
-        conversations: updatedConversations
+        conversations: updatedConversations,
       }
     }),
 
@@ -129,14 +162,23 @@ export const useChatStore = create<ChatStore>((set) => ({
         createdAt: message.createdAt,
         sender: {
           _id: message.senderId,
-          displayName: message.senderInfor?.displayName || message.displayName || "Unknown",
-          avatarUrl: message.senderInfor?.avatarUrl || null
-        }
+          displayName:
+            message.senderInfor?.displayName ||
+            message.displayName ||
+            "Unknown",
+          avatarUrl: message.senderInfor?.avatarUrl || null,
+        },
       }
 
       const updatedConversations = state.conversations
-        .map((conv) => (conv._id === conversationId ? { ...conv, lastMessage } : conv))
-        .sort((a, b) => new Date(b.lastMessage?.createdAt || "").getTime() - new Date(a.lastMessage?.createdAt || "").getTime())
+        .map((conv) =>
+          conv._id === conversationId ? { ...conv, lastMessage } : conv
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.lastMessage?.createdAt || "").getTime() -
+            new Date(a.lastMessage?.createdAt || "").getTime()
+        )
 
       return { conversations: updatedConversations }
     }),
@@ -144,9 +186,10 @@ export const useChatStore = create<ChatStore>((set) => ({
   setOpenDirect: (value) => set({ openDirect: value }),
   setOpenGroup: (value) => set({ openGroup: value }),
 
-  // BỔ SUNG: Logic xóa
-  removeConversation: (id) => set((state) => ({
-    conversations: state.conversations.filter((c) => c._id !== id),
-    activeConversationId: state.activeConversationId === id ? null : state.activeConversationId
-  })),
+  removeConversation: (id) =>
+    set((state) => ({
+      conversations: state.conversations.filter((c) => c._id !== id),
+      activeConversationId:
+        state.activeConversationId === id ? null : state.activeConversationId,
+    })),
 }))
