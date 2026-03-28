@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -14,15 +14,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useGroupStore } from "@/store/useGroupStore"
 import { useChatStore } from "@/store/useChatStore"
 import axios from "axios"
-import { 
-  Search, 
-  Users2, 
-  Check, 
-  Loader2, 
-  Sparkles, 
-  User 
+import {
+  Search,
+  Users2,
+  Check,
+  Loader2,
+  Sparkles,
+  User
 } from "lucide-react"
 import { toast } from "sonner"
+import axiosClient from "@/lib/axios_config"
 
 interface AddGroupFormProps {
   open: boolean
@@ -37,7 +38,7 @@ interface FormCreateGroup {
 export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
   const { friends, setFriends } = useGroupStore()
   const currentUserId = useChatStore(s => s.currentUserId) // Lấy ID bản thân
-  
+
   const [keyword, setKeyword] = useState("")
   const [form, setForm] = useState<FormCreateGroup>({
     name: "",
@@ -51,7 +52,7 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
       const isSelected = prev.userIds.includes(_id);
       return {
         ...prev,
-        userIds: isSelected 
+        userIds: isSelected
           ? prev.userIds.filter(id => id !== _id)
           : [...prev.userIds, _id]
       };
@@ -66,10 +67,10 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
 
     setIsLoading(true);
     try {
-      const res = await axios.post("http://localhost:5001/api/group/create", form, {
+      const res = await axiosClient.post("http://localhost:5001/api/group", form, {
         withCredentials: true
       });
-      
+
       if (res.status === 201) {
         toast.success("Tạo nhóm thành công!");
         setForm({ name: "", userIds: [] });
@@ -86,7 +87,7 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
     if (!keyword.trim()) return;
     setIsSearching(true)
     try {
-      const res = await axios.get(`http://localhost:5001/api/users/search?keyword=${keyword}`, {
+      const res = await axiosClient.get(`http://localhost:5001/api/users/search?keyword=${keyword}`, {
         withCredentials: true
       })
       if (res.status === 200 || res.status === 201) {
@@ -103,7 +104,7 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
       {/* Ẩn nút X mặc định hoặc đổi màu nút X mặc định sang trắng */}
       <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden border-none shadow-2xl rounded-[32px] bg-white [&>button]:text-white/80 [&>button]:hover:text-white [&>button]:top-6 [&>button]:right-6">
-        
+
         {/* --- HEADER --- */}
         <div className="bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 p-8 text-white relative">
           <div className="absolute top-4 right-12 opacity-10 animate-pulse">
@@ -128,8 +129,8 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
             <label className="text-[12px] font-bold text-gray-400 ml-1 uppercase tracking-[1px]">
               Tên nhóm
             </label>
-            <Input 
-              placeholder="Nhập tên nhóm của bạn..." 
+            <Input
+              placeholder="Nhập tên nhóm của bạn..."
               className="h-12 border-none bg-gray-50 rounded-2xl focus-visible:ring-2 focus-visible:ring-purple-500/20 transition-all text-base shadow-inner"
               value={form.name}
               onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
@@ -146,7 +147,7 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
                 Đã chọn: {form.userIds.length}
               </span>
             </div>
-            
+
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -158,8 +159,8 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
                   onKeyDown={(e) => e.key === "Enter" && handleGetListFriend()}
                 />
               </div>
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 className="h-11 rounded-xl px-5 bg-purple-600 text-white hover:bg-purple-700 transition-all active:scale-95 shadow-md shadow-purple-100"
                 onClick={handleGetListFriend}
                 disabled={isSearching}
@@ -175,20 +176,26 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
                   friends.map((f: any) => {
                     const isSelected = form.userIds.includes(f._id);
                     return (
-                      <div 
-                        key={f._id} 
+                      <div
+                        key={f._id}
                         onClick={() => handleToggleUser(f._id)}
-                        className={`group flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all duration-200 ${
-                          isSelected 
-                            ? "bg-white border-purple-200 shadow-sm border ring-1 ring-purple-100" 
+                        className={`group flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected
+                            ? "bg-white border-purple-200 shadow-sm border ring-1 ring-purple-100"
                             : "hover:bg-white border border-transparent hover:shadow-sm"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <Avatar className="h-10 w-10 border-2 border-white shadow-sm transition-transform group-hover:scale-105">
-                            <AvatarImage src={f.avatarUrl} className="object-cover" />
+                            <AvatarImage
+                              src={
+                                f.avatarUrl
+                                  ? (f.avatarUrl.startsWith("http") ? f.avatarUrl : `http://localhost:5001${f.avatarUrl}`)
+                                  : ""
+                              }
+                              className="object-cover"
+                            />
                             <AvatarFallback className="bg-indigo-100 text-indigo-700 font-bold text-xs">
-                              {f.displayName?.charAt(0).toUpperCase() || <User size={16}/>}
+                              {f.displayName?.charAt(0).toUpperCase() || <User size={16} />}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex flex-col min-w-0">
@@ -200,7 +207,7 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
                             </span>
                           </div>
                         </div>
-                        
+
                         <div className={`transition-all duration-300 ${isSelected ? "scale-100 opacity-100" : "scale-50 opacity-0 group-hover:opacity-30"}`}>
                           <div className={`p-1.5 rounded-full ${isSelected ? "bg-purple-600" : "bg-slate-300"}`}>
                             <Check className="w-3 h-3 text-white" strokeWidth={3} />
@@ -221,15 +228,15 @@ export default function AddGroupForm({ open, onClose }: AddGroupFormProps) {
 
           {/* Footer Actions */}
           <div className="flex items-center gap-3 pt-2">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={onClose}
               className="flex-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl h-12 font-bold"
             >
               Hủy
             </Button>
-            <Button 
-              onClick={handleCreateGroup} 
+            <Button
+              onClick={handleCreateGroup}
               disabled={isLoading || form.userIds.length === 0}
               className="flex-[2] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl h-12 shadow-lg shadow-purple-200 transition-all active:scale-95 disabled:opacity-50 font-bold"
             >

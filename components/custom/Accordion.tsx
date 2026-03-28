@@ -50,7 +50,7 @@ export const Accordion: React.FC<AccordionProps> = ({
           : "0px";
       }
     });
-  }, [selected]);
+  }, [selected , items]);
 
   const handleClick = (index: number) => {
 

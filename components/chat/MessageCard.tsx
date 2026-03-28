@@ -95,7 +95,7 @@ const MessageCard = () => {
               {/* Chỉ hiện tên nếu là tin đầu tiên trong chuỗi của người khác */}
               {!isMine && !isSameAsPrev && (
                 <span className="text-[11px] font-medium text-zinc-500 ml-2 mb-1">
-                  {msg?.senderInfor?.displayName || msg?.displayName || "User"}
+                  {msg?.senderSnapshot?.name ||  "User"}
                 </span>
               )}
 

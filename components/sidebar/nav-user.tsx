@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import EditProfileForm from "../form//EditProfileForm"
 import { toast } from "sonner"
+import axiosClient from "@/lib/axios_config"
 
 interface Props {
   user: User
@@ -28,7 +29,7 @@ export function NavUser({ user: initialUser }: Props) {
 
   const handleLogout = async () => {
     try {
-      await axios.post(
+      await axiosClient.post(
         `${BACKEND_URL}/api/auth/signout`,
         {},
         { withCredentials: true }
@@ -43,7 +44,7 @@ export function NavUser({ user: initialUser }: Props) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await axios.get(
+        const res = await axiosClient.get(
           `${BACKEND_URL}/api/users/me`,
           { withCredentials: true }
         )
@@ -64,7 +65,7 @@ export function NavUser({ user: initialUser }: Props) {
 
   return (
     <>
-      <div className="flex items-center justify-between w-full p-2.5 border rounded-2xl bg-card shadow-sm hover:shadow-md transition-all border-border/50">
+      <div className="flex items-center justify-between w-full p-2.5  bg-muted shadow-sm hover:shadow-md transition-all border-border/50">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-primary/10 bg-muted shrink-0 flex items-center justify-center shadow-sm">
             {user.avatarUrl ? (
@@ -92,8 +93,8 @@ export function NavUser({ user: initialUser }: Props) {
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-muted">
-              <Settings className="w-4 h-4 text-muted-foreground" />
+            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-muted">
+              <Settings className="w-5 h-5 text-muted-foreground" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-48 p-1.5 rounded-xl shadow-xl border-border/40" align="end" side="right">

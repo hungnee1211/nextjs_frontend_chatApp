@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -13,18 +13,19 @@ import { useFriendStore } from "@/store/useFriendStore"
 import { useSocketStore } from "@/store/useSocketStore"
 import { useChatStore } from "@/store/useChatStore"
 import axios from "axios"
-import { 
-  Search, 
-  UserPlus2, 
-  UserSearch, 
-  Loader2, 
-  User, 
-  Check, 
-  Clock, 
+import {
+  Search,
+  UserPlus2,
+  UserSearch,
+  Loader2,
+  User,
+  Check,
+  Clock,
   UserCheck
 } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import axiosClient from "@/lib/axios_config"
 
 interface AddFriendFormProps {
   open: boolean
@@ -36,13 +37,13 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
   const [loading, setLoading] = useState(false)
   const [searchResults, setSearchResults] = useState<any[]>([])
 
-  const { 
-    addSentRequest, 
-    isFriend, 
-    hasSentRequest, 
-    hasIncomingRequest 
+  const {
+    addSentRequest,
+    isFriend,
+    hasSentRequest,
+    hasIncomingRequest
   } = useFriendStore()
-  
+
   const socket = useSocketStore(s => s.socket)
   const currentUserId = useChatStore(s => s.currentUserId)
 
@@ -50,11 +51,11 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
     if (!keyword.trim()) return
     setLoading(true)
     try {
-      const res = await axios.get(
+      const res = await axiosClient.get(
         `http://localhost:5001/api/users/search?keyword=${keyword}`,
         { withCredentials: true }
       )
-      
+
       if (res.status === 200 || res.status === 201) {
         const filtered = res.data.filter((user: any) => user._id !== currentUserId)
         setSearchResults(filtered)
@@ -68,9 +69,9 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
 
   const handleSendFriendRequest = async (id: string) => {
     try {
-      const res = await axios.post(
-        "http://localhost:5001/api/friend/request", 
-        { to: id, message: "Kết bạn nhé!" }, 
+      const res = await axiosClient.post(
+        "http://localhost:5001/api/friend/request",
+        { to: id, message: "Kết bạn nhé!" },
         { withCredentials: true }
       )
 
@@ -78,7 +79,7 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
         const newRequest = res.data.request
         addSentRequest(newRequest)
         toast.success("Đã gửi lời mời kết bạn")
-        
+
         if (socket) {
           socket.emit("send-friend-request", {
             ...newRequest,
@@ -97,7 +98,7 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
          để nút X mặc định của Shadcn chuyển sang màu trắng.
       */}
       <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden border-none bg-white shadow-2xl rounded-[32px] [&>button]:text-white/80 [&>button]:hover:text-white [&>button]:top-6 [&>button]:right-6 [&>button]:scale-110">
-        
+
         {/* --- HEADER --- */}
         <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-8 text-white relative">
           <div className="relative z-10">
@@ -113,14 +114,14 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
               </p>
             </DialogHeader>
           </div>
-          
+
           {/* Decor background */}
           <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         </div>
 
         {/* --- BODY --- */}
         <div className="p-6 space-y-6">
-          
+
           {/* Search Input Box */}
           <div className="relative group">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
@@ -152,13 +153,20 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
                 const isIncoming = hasIncomingRequest(user._id)
 
                 return (
-                  <div 
-                    key={user._id} 
+                  <div
+                    key={user._id}
                     className="group flex items-center justify-between p-3.5 rounded-[22px] border border-transparent hover:bg-indigo-50/50 hover:border-indigo-100 transition-all duration-300"
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
                       <Avatar className="h-12 w-12 border-2 border-white shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
-                        <AvatarImage src={user.avatarUrl} className="object-cover" />
+                        <AvatarImage
+                          src={
+                            user.avatarUrl
+                              ? (user.avatarUrl.startsWith("http") ? user.avatarUrl : `http://localhost:5001${user.avatarUrl}`)
+                              : ""
+                          }
+                          className="object-cover"
+                        />
                         <AvatarFallback className="bg-gradient-to-tr from-indigo-100 to-violet-200 text-indigo-700 font-bold text-lg uppercase">
                           {user?.displayName?.charAt(0) || <User size={20} />}
                         </AvatarFallback>
@@ -184,7 +192,7 @@ export default function AddFriendForm({ open, onClose }: AddFriendFormProps) {
                       </Button>
                     ) : isIncoming ? (
                       <Button variant="secondary" size="sm" className="rounded-xl h-9 px-4 bg-indigo-100 text-indigo-700 border-none">
-                         Đã gửi bạn
+                        Đã gửi bạn
                       </Button>
                     ) : (
                       <Button

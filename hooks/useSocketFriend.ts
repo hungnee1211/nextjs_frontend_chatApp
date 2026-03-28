@@ -1,47 +1,50 @@
 "use client"
+
 import { useEffect } from "react"
 import { useSocketStore } from "@/store/useSocketStore"
 import { useFriendStore } from "@/store/useFriendStore"
-import { useChatStore } from "@/store/useChatStore" // Thêm cái này
-import axios from "axios" // Thêm cái này
+import { useChatStore } from "@/store/useChatStore"
 import { toast } from "sonner"
 
 export const useSocketFriend = () => {
   const socket = useSocketStore(s => s.socket)
+
   const addIncomingRequest = useFriendStore(s => s.addIncomingRequest)
-  const setConversations = useChatStore(s => s.setConversations) // Thêm cái này
+
+  const setConversations = useChatStore(s => s.setConversations)
+  const conversations = useChatStore(s => s.conversations)
 
   useEffect(() => {
     if (!socket) return
 
-    // 1. Nhận lời mời kết bạn (Dành cho người nhận)
     const handleFriendRequest = (request: any) => {
       addIncomingRequest(request)
-      toast.info(`Bạn có lời mời kết bạn mới!`)
+      toast.info("Bạn có lời mời kết bạn mới!")
     }
 
-    // 2. Lời mời của mình đã được đồng ý (Dành cho người gửi)
-    const handleRequestAccepted = async (data: any) => {
-      console.log("Lời mời của bạn đã được chấp nhận:", data)
-      toast.success("Người ấy đã đồng ý kết bạn!")
-      
-      try {
-        // Fetch lại danh sách conversation để cập nhật UI realtime
-        const res = await axios.get("http://localhost:5001/api/conversation", { 
-          withCredentials: true 
-        });
-        setConversations(res.data?.conversations);
-      } catch (error) {
-        console.error("Lỗi cập nhật danh sách chat realtime", error)
-      }
+    
+    const handleNewConversation = (conversation: any) => {
+      console.log("New conversation:", conversation)
+
+    
+      const exists = conversations.some(
+        (c: any) => c._id === conversation._id
+      )
+
+      if (exists) return
+
+      setConversations([conversation, ...conversations])
+
+      toast.success("Bạn đã có cuộc trò chuyện mới!")
     }
 
-    socket.on("friend_request_received", handleFriendRequest)
-    socket.on("friend_request_accepted", handleRequestAccepted)
+    socket.on("new-friend-request", handleFriendRequest)
+    socket.on("new-conversation", handleNewConversation)
 
     return () => {
-      socket.off("friend_request_received", handleFriendRequest)
-      socket.off("friend_request_accepted", handleRequestAccepted)
+      socket.off("new-friend-request", handleFriendRequest)
+      socket.off("new-conversation", handleNewConversation)
     }
-  }, [socket, addIncomingRequest, setConversations])
+
+  }, [socket, addIncomingRequest, setConversations, conversations])
 }

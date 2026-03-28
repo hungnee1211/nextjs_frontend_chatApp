@@ -1,32 +1,43 @@
-import { Conversation, Message, LastMessage } from "@/lib/types/chat"
+"use client"
+
+import { Conversation, Message } from "@/lib/types/chat"
 import { create } from "zustand"
 
 interface ChatStore {
   currentUserId: string | null
-  conversations: Conversation[]
   activeConversationId: string | null
+
   messagesByConversationId: Record<string, Message[]>
+
+  conversations: Conversation[]
+
   openDirect: boolean
   openGroup: boolean
+  isInfoOpen: boolean
 
-  // Actions
+  setConversations: (
+    data:
+      | Conversation[]
+      | ((prev: Conversation[]) => Conversation[])
+  ) => void
+
   setCurrentUserId: (id: string) => void
-  setConversations: (data: Conversation[]) => void
   setActiveConversationId: (id: string | null) => void
+
   setMessages: (conversationId: string, messages: Message[]) => void
-  
-  // Conversation Logic
+
   addConversation: (conv: Conversation) => void
-  updateConversation: (updatedConv: Conversation) => void // Cập nhật khi thêm thành viên/đổi tên
+  updateConversation: (conv: Conversation) => void
   removeConversation: (id: string) => void
-  
-  // Message Logic
-  addMessage: (message: Message & { tempId?: string }) => void
-  updateLastMessage: (conversationId: string, message: Message) => void
-  
-  // UI Logic
-  setOpenDirect: (value: boolean) => void
-  setOpenGroup: (value: boolean) => void
+
+  addMessage: (msg: Message & { tempId?: string }) => void
+  updateLastMessage: (conversationId: string, msg: Message) => void
+
+  setOpenDirect: (v: boolean) => void
+  setOpenGroup: (v: boolean) => void
+
+  toggleInfo: () => void
+  setInfoOpen: (v: boolean) => void
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -34,64 +45,75 @@ export const useChatStore = create<ChatStore>((set) => ({
   conversations: [],
   activeConversationId: null,
   messagesByConversationId: {},
+
   openDirect: false,
   openGroup: false,
+  isInfoOpen: false,
 
+  // ================= UI =================
+  toggleInfo: () => set((s) => ({ isInfoOpen: !s.isInfoOpen })),
+  setInfoOpen: (v) => set({ isInfoOpen: v }),
+
+  setOpenDirect: (v) => set({ openDirect: v }),
+  setOpenGroup: (v) => set({ openGroup: v }),
+
+  // ================= DATA =================
   setCurrentUserId: (id) => set({ currentUserId: id }),
-  
-  setConversations: (data) => set({ conversations: data }),
-  
-  setActiveConversationId: (id) => set({ activeConversationId: id }),
 
-  // Cập nhật thông tin chi tiết của một cuộc hội thoại (thêm mem, sửa tên...)
-  updateConversation: (updatedConv) =>
+  setConversations: (data) =>
+    set((state) => ({
+      conversations:
+        typeof data === "function"
+          ? data(state.conversations)
+          : data,
+    })),
+
+  setActiveConversationId: (id) =>
+    set({ activeConversationId: id }),
+
+  updateConversation: (updated) =>
     set((state) => ({
       conversations: state.conversations.map((c) =>
-        c._id === updatedConv._id ? { ...c, ...updatedConv } : c
+        c._id === updated._id ? { ...c, ...updated } : c
       ),
     })),
 
-  setMessages: (conversationId, messages) =>
-    set((state) => {
-      const last = messages?.[messages.length - 1]
-      const lastMessage: LastMessage | null = last
-        ? {
-            _id: last._id,
-            content: last.content ?? "",
-            createdAt: last.createdAt,
-            sender: {
-              _id: last.senderId,
-              displayName:
-                last.senderInfor?.displayName ||
-                last.displayName ||
-                "Unknown",
-              avatarUrl: last.senderInfor?.avatarUrl || null,
-            },
-          }
-        : null
+  // ================= MESSAGE =================
+setMessages: (conversationId, messages) =>
+  set((state) => {
+    const last = messages.length > 0 ? messages[messages.length - 1] : null;
 
-      return {
-        messagesByConversationId: {
-          ...state.messagesByConversationId,
-          [conversationId]: messages,
-        },
-        conversations: state.conversations.map((conv) =>
-          conv._id === conversationId ? { ...conv, lastMessage } : conv
-        ),
-      }
-    }),
+    return {
+      messagesByConversationId: {
+        ...state.messagesByConversationId,
+        [conversationId]: messages,
+      },
+      conversations: state.conversations.map((c): Conversation =>
+        c._id === conversationId
+          ? ({
+              ...c,
+              lastMessage: last,
+              lastMessageAt: last ? last.createdAt : c.lastMessageAt,
+            } as Conversation)
+          : c
+      ),
+    };
+  }),
 
-  addConversation: (conv) =>
+addConversation: (conv) =>
     set((state) => {
-      const existed = state.conversations.find((c) => c._id === conv._id)
-      if (existed) {
-        // Nếu đã tồn tại, cập nhật lại để đảm bảo thông tin (như mem mới) là mới nhất
+      const exist = state.conversations.find(
+        (c) => c._id === conv._id
+      )
+
+      if (exist) {
         return {
           conversations: state.conversations.map((c) =>
             c._id === conv._id ? { ...c, ...conv } : c
           ),
         }
       }
+
       return {
         conversations: [conv, ...state.conversations],
         messagesByConversationId: {
@@ -101,95 +123,94 @@ export const useChatStore = create<ChatStore>((set) => ({
       }
     }),
 
-  addMessage: (message: Message & { tempId?: string }) =>
-    set((state) => {
-      const msgs = state.messagesByConversationId[message.conversationId] || []
-      let newMsgs = msgs
+addMessage: (msg: Message) =>
+  set((state) => {
+    const conversationId = msg.conversationId;
+    const currentMsgs = state.messagesByConversationId[conversationId] || [];
 
-      if (message.tempId) {
-        const index = msgs.findIndex(
-          (m) => m.tempId === message.tempId || m._id === message.tempId
-        )
-        if (index !== -1) {
-          newMsgs = [...msgs]
-          newMsgs[index] = message
-        } else {
-          newMsgs = [...msgs, message]
+    const isDuplicate = currentMsgs.some(
+      (m) => m._id === msg._id || (msg.tempId && m.tempId === msg.tempId)
+    );
+
+    let newMsgs = currentMsgs;
+    if (msg.tempId && currentMsgs.some((m) => m.tempId === msg.tempId)) {
+      newMsgs = currentMsgs.map((m) => (m.tempId === msg.tempId ? msg : m));
+    } else if (!isDuplicate) {
+      newMsgs = [...currentMsgs, msg];
+    } else {
+      return state;
+    }
+
+    const updatedConvs = state.conversations.map((c): Conversation => {
+      if (c._id !== conversationId) return c;
+
+      const isNotMe = msg.senderId !== state.currentUserId;
+      const isNotActive = state.activeConversationId !== conversationId;
+
+      // Xử lý participants dựa trên type của conversation
+      const updatedParticipants = (c.participants as any[]).map((p) => {
+        const pId = typeof p.userId === "string" ? p.userId : p.userId._id;
+        if (pId === state.currentUserId && isNotMe && isNotActive) {
+          return { ...p, unreadCount: (p.unreadCount || 0) + 1 };
         }
-      } else {
-        if (msgs.some((m) => m._id === message._id)) return {}
-        newMsgs = [...msgs, message]
-      }
+        return p;
+      });
 
-      const lastMessage: LastMessage = {
-        _id: message._id,
-        content: message.content ?? "",
-        createdAt: message.createdAt,
-        sender: {
-          _id: message.senderId,
-          displayName:
-            message.senderInfor?.displayName ||
-            message.displayName ||
-            "Unknown",
-          avatarUrl: message.senderInfor?.avatarUrl || null,
-        },
-      }
-
-      const updatedConversations = state.conversations
-        .map((conv) =>
-          conv._id === message.conversationId ? { ...conv, lastMessage } : conv
-        )
-        .sort(
-          (a, b) =>
-            new Date(b.lastMessage?.createdAt || "").getTime() -
-            new Date(a.lastMessage?.createdAt || "").getTime()
-        )
-
+      // Trả về đúng kiểu Conversation (ép kiểu qua any để tránh TS bắt bẻ cấu trúc Participant mix)
       return {
-        messagesByConversationId: {
-          ...state.messagesByConversationId,
-          [message.conversationId]: newMsgs,
-        },
-        conversations: updatedConversations,
-      }
-    }),
+        ...c,
+        lastMessage: msg,
+        lastMessageAt: msg.createdAt,
+        participants: updatedParticipants,
+      } as Conversation;
+    });
 
-  updateLastMessage: (conversationId, message) =>
+    // Sắp xếp lại danh sách
+    const sortedConvs = [...updatedConvs].sort((a, b) => {
+      const timeA = new Date(a.lastMessageAt || 0).getTime();
+      const timeB = new Date(b.lastMessageAt || 0).getTime();
+      return timeB - timeA;
+    });
+
+    return {
+      messagesByConversationId: {
+        ...state.messagesByConversationId,
+        [conversationId]: newMsgs,
+      },
+      conversations: sortedConvs,
+    };
+  }),
+
+
+  updateLastMessage: (conversationId, msg) =>
     set((state) => {
-      const lastMessage: LastMessage = {
-        _id: message._id,
-        content: message.content ?? "",
-        createdAt: message.createdAt,
-        sender: {
-          _id: message.senderId,
-          displayName:
-            message.senderInfor?.displayName ||
-            message.displayName ||
-            "Unknown",
-          avatarUrl: message.senderInfor?.avatarUrl || null,
-        },
-      }
-
-      const updatedConversations = state.conversations
-        .map((conv) =>
-          conv._id === conversationId ? { ...conv, lastMessage } : conv
+      const updated = state.conversations
+        .map((c) =>
+          c._id === conversationId
+            ? {
+                ...c,
+                lastMessage: msg,
+                lastMessageAt: msg.createdAt,
+              }
+            : c
         )
         .sort(
           (a, b) =>
-            new Date(b.lastMessage?.createdAt || "").getTime() -
-            new Date(a.lastMessage?.createdAt || "").getTime()
+            new Date(b.lastMessageAt || "").getTime() -
+            new Date(a.lastMessageAt || "").getTime()
         )
 
-      return { conversations: updatedConversations }
+      return { conversations: updated }
     }),
-
-  setOpenDirect: (value) => set({ openDirect: value }),
-  setOpenGroup: (value) => set({ openGroup: value }),
 
   removeConversation: (id) =>
     set((state) => ({
-      conversations: state.conversations.filter((c) => c._id !== id),
+      conversations: state.conversations.filter(
+        (c) => c._id !== id
+      ),
       activeConversationId:
-        state.activeConversationId === id ? null : state.activeConversationId,
+        state.activeConversationId === id
+          ? null
+          : state.activeConversationId,
     })),
 }))

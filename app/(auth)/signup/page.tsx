@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import axiosClient from "@/lib/axios_config"
 import axios from "axios"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -22,7 +23,7 @@ const SignUpPage = () => {
     const router = useRouter()
     const RegisterUser = async () => {
         try {
-           const res = await axios.post("http://localhost:5001/api/auth/signup" , {
+           const res = await axiosClient.post("http://localhost:5001/api/auth/signup" , {
                 username , 
                 password , 
                 firstName,

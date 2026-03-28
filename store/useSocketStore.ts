@@ -16,12 +16,13 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     isConnected: false,
     onlineUsers: [],
 
-   connect: () => {
+   connect: (userId) => {
   if (get().socket) return
 
   const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
-    withCredentials: true
-  })
+    query: { userId }, 
+    withCredentials: true,
+  });
 
   socket.on("connect", () => {
     console.log("🟢 connected FE")

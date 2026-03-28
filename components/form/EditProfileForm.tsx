@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { useUserStore } from "@/store/useUserStore"
 import { Camera, Loader2 } from "lucide-react"
 import { toast } from "sonner" // Import từ sonner
+import axiosClient from "@/lib/axios_config"
 
 interface EditProfileFormProps {
   onSuccess?: () => void
@@ -53,7 +54,7 @@ export default function EditProfileForm({ onSuccess }: EditProfileFormProps) {
         formData.append("avatar", avatar)
       }
 
-      const res = await axios.patch(
+      const res = await axiosClient.patch(
         `${BACKEND_URL}/api/users/update`,
         formData,
         { withCredentials: true }

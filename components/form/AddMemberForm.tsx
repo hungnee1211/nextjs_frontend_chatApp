@@ -5,6 +5,7 @@ import axios from "axios"
 import { toast } from "sonner"
 import { useChatStore } from "@/store/useChatStore"
 import { Search, UserPlus, X, Loader2, Users, UserCircle2 } from "lucide-react"
+import axiosClient from "@/lib/axios_config"
 
 type UserSearchResult = {
   _id: string
@@ -29,7 +30,7 @@ const AddMemberModal = ({ conversationId, open, onClose }: { conversationId: str
 
       try {
         setLoadingSearch(true)
-        const res = await axios.get(`http://localhost:5001/api/users/search`, {
+        const res = await axiosClient.get(`http://localhost:5001/api/users/search`, {
           params: { keyword: keyword },
           withCredentials: true
         })
@@ -47,8 +48,8 @@ const AddMemberModal = ({ conversationId, open, onClose }: { conversationId: str
 
   const handleAddMember = async (userId: string) => {
     try {
-      const res = await axios.patch(
-        "http://localhost:5001/api/group/add-member",
+      const res = await axiosClient.patch(
+        `http://localhost:5001/api/group/${conversationId}/add`,
         { conversationId, userId },
         { withCredentials: true }
       )

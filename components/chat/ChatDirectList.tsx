@@ -1,22 +1,34 @@
 "use client"
 
-import { Conversation } from "@/lib/types/chat"
-import ChatCard from "./ChatCard"
 import { useChatStore } from "@/store/useChatStore"
+import ChatCard from "./ChatCard"
+import { Conversation, DirectConversation } from "@/lib/types/chat";
+import { useMemo } from "react";
 
-const ChatDirectList = () => {
-  const { conversations, setActiveConversationId } = useChatStore()
+interface Props {
+  data?: Conversation[]; // Thêm prop này
+}
 
-  const directChats = conversations.filter(c => c.type === "direct")
+const ChatDirectList = ({ data }: Props) => {
+
+  const allConversations = useChatStore(s => s.conversations)
+  const storeDirects = useMemo(() => 
+  allConversations.filter((c): c is DirectConversation => c.type === "direct"),
+  [allConversations]
+)
+  const displayData = data || storeDirects;
 
   return (
     <div className="space-y-2">
-      {directChats.map((convo: Conversation) => (
+      {displayData.map((convo) => (
         <ChatCard
           key={convo._id}
           conversationId={convo._id}
         />
-      ))}
+      ))} 
+      {displayData.length === 0 && (
+        <p className="text-xs text-center text-muted-foreground py-4">Không tìm thấy hội thoại</p>
+      )}
     </div>
   )
 }

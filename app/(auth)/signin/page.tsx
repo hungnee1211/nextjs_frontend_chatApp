@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import axiosClient from "@/lib/axios_config"
 import axios from "axios"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -31,7 +32,7 @@ const SignInPage = () => {
 
     const LogIn = async () => {
         try {
-            const res = await axios.post("http://localhost:5001/api/auth/signin" , {
+            const res = await axiosClient.post("http://localhost:5001/api/auth/signin" , {
                 username , 
                 password
             }, { withCredentials: true })

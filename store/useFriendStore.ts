@@ -84,15 +84,15 @@ export const useFriendStore = create<FriendState>((set, get) => ({
 
   hasSentRequest: (userId: string) =>
     get().sentRequests.some(r => {
-      // Nếu r.to là object, lấy _id. Nếu là string, lấy chính nó.
-      const toId = typeof r.to === 'object' ? r.to?._id : r.to;
+      // Ép kiểu rõ ràng: nếu là object thì coi như có trường _id kiểu string
+      const toId = typeof r.to === 'object' ? (r.to as { _id: string })?._id : r.to;
       return toId === userId;
     }),
 
   hasIncomingRequest: (userId: string) =>
     get().incomingRequests.some(r => {
-      // Nếu r.from là object, lấy _id. Nếu là string, lấy chính nó.
-      const fromId = typeof r.from === 'object' ? r.from?._id : r.from;
+      // Tương tự cho r.from
+      const fromId = typeof r.from === 'object' ? (r.from as { _id: string })?._id : r.from;
       return fromId === userId;
     })
 }))
