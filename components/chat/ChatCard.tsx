@@ -34,7 +34,7 @@ const ChatCard = ({ conversationId }: { conversationId: string }) => {
 
   const socket = useSocketStore(s => s.socket)
   const conversation = conversations.find(c => c._id === conversationId)
-  
+
   const [openAddMember, setOpenAddMember] = useState(false)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
@@ -52,47 +52,47 @@ const ChatCard = ({ conversationId }: { conversationId: string }) => {
     return format(date, "dd/MM")
   }
 
-const info = useMemo(() => {
-  if (!currentUserId || !conversation) return null;
-  const isGroup = conversation.type === "group";
+  const info = useMemo(() => {
+    if (!currentUserId || !conversation) return null;
+    const isGroup = conversation.type === "group";
 
-  // Lấy unreadCount từ field Backend đã tính sẵn hoặc tìm trong participants
-  const unreadCount = (conversation as any).unreadCount ?? 
-    Number(conversation.participants.find(p => 
-      (typeof p.userId === "string" ? p.userId : p.userId._id) === currentUserId
-    )?.unreadCount || 0);
+    // Lấy unreadCount từ field Backend đã tính sẵn hoặc tìm trong participants
+    const unreadCount = (conversation as any).unreadCount ??
+      Number(conversation.participants.find(p =>
+        (typeof p.userId === "string" ? p.userId : p.userId._id) === currentUserId
+      )?.unreadCount || 0);
 
-  if (!isGroup) {
-    // Ép kiểu để lấy field 'user' mà Backend gửi về
-    const direct = conversation as any; 
-    const otherUser = direct.user; // Backend đã để sẵn user ở đây rồi!
+    if (!isGroup) {
+      // Ép kiểu để lấy field 'user' mà Backend gửi về
+      const direct = conversation as any;
+      const otherUser = direct.user; // Backend đã để sẵn user ở đây rồi!
 
+      return {
+        name: otherUser?.displayName || "Người dùng",
+        // Quan trọng: Kiểm tra đúng field avatarUrl
+        avatar: otherUser?.avatarUrl || "/user.png",
+        lastMsg: typeof conversation.lastMessage === "object"
+          ? (conversation.lastMessage as any)?.content
+          : "Bắt đầu cuộc trò chuyện",
+        time: formatTime(conversation.lastMessageAt),
+        unread: unreadCount,
+        otherUserId: otherUser?._id,
+        isGroup: false
+      };
+    }
+
+    // Logic cho Group
     return {
-      name: otherUser?.displayName || "Người dùng",
-      // Quan trọng: Kiểm tra đúng field avatarUrl
-      avatar: otherUser?.avatarUrl || "/user.png", 
-      lastMsg: typeof conversation.lastMessage === "object" 
-        ? (conversation.lastMessage as any)?.content 
-        : "Bắt đầu cuộc trò chuyện",
+      name: (conversation as any).name,
+      avatar: (conversation as any).avatar || "/group.png",
+      lastMsg: typeof conversation.lastMessage === "object"
+        ? (conversation.lastMessage as any)?.content
+        : "Chưa có tin nhắn",
       time: formatTime(conversation.lastMessageAt),
       unread: unreadCount,
-      otherUserId: otherUser?._id,
-      isGroup: false
+      isGroup: true
     };
-  }
-
-  // Logic cho Group
-  return {
-    name: (conversation as any).name,
-    avatar: (conversation as any).avatar || "/group.png",
-    lastMsg: typeof conversation.lastMessage === "object" 
-      ? (conversation.lastMessage as any)?.content 
-      : "Chưa có tin nhắn",
-    time: formatTime(conversation.lastMessageAt),
-    unread: unreadCount,
-    isGroup: true
-  };
-}, [conversation, currentUserId]);
+  }, [conversation, currentUserId]);
 
 
   console.log(info)
@@ -108,7 +108,7 @@ const info = useMemo(() => {
     );
   };
 
-  
+
   useEffect(() => {
     if (!socket || !conversationId) return
     const handleTyping = (data: any) => {
@@ -126,22 +126,26 @@ const info = useMemo(() => {
     }
   }, [socket, conversationId])
 
- 
+
   const handleClick = async () => {
     setActiveConversationId(conversationId)
+
+    // SỬA LẠI ĐOẠN NÀY ĐỂ RESET CẢ UNREADCOUNT BÊN NGOÀI
     useChatStore.setState((state) => ({
-    conversations: state.conversations.map((c) => {
-      if (c._id !== conversationId) return c
-      return {
-        ...c,
-        participants: (c.participants as any[]).map((p) => {
-          const pId = typeof p.userId === "string" ? p.userId : p.userId._id
-          if (pId === currentUserId) return { ...p, unreadCount: 0 }
-          return p
-        }),
-      }
-    }) as any, 
-  }))
+      conversations: state.conversations.map((c) => {
+        if (c._id !== conversationId) return c
+        return {
+          ...c,
+          unreadCount: 0, // <--- THÊM DÒNG NÀY ĐỂ CLEAR BADGE CỦA DIRECT CHAT
+          participants: (c.participants as any[]).map((p) => {
+            const pId = typeof p.userId === "string" ? p.userId : p.userId._id
+            if (pId === currentUserId) return { ...p, unreadCount: 0 }
+            return p
+          }),
+        }
+      }) as any,
+    }))
+
     try {
       const res = await axiosClient.get(`http://localhost:5001/api/message/${conversationId}`, { withCredentials: true })
       setMessages(conversationId, res.data)
@@ -162,7 +166,7 @@ const info = useMemo(() => {
 
   const isOnline = info?.otherUserId && onlineUsers.includes(info.otherUserId)
   const isTyping = typingUsers.length > 0
-  
+
 
   return (
     <>
@@ -177,7 +181,7 @@ const info = useMemo(() => {
         <div className="relative flex-shrink-0">
           <Avatar className="h-12 w-12 border border-slate-100 shadow-sm">
             <AvatarImage src={"http://localhost:5001" + info?.avatar} className="object-cover" />
-           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white font-medium">
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white font-medium">
               {info?.name?.[0]?.toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -203,8 +207,8 @@ const info = useMemo(() => {
           <div className="flex items-center justify-between gap-1">
             <p className={cn(
               "text-xs truncate leading-5",
-              isTyping ? "text-blue-500 italic font-medium" : 
-              (info?.unread && info.unread > 0 ? "text-slate-900 font-bold" : "text-slate-500")
+              isTyping ? "text-blue-500 italic font-medium" :
+                (info?.unread && info.unread > 0 ? "text-slate-900 font-bold" : "text-slate-500")
             )}>
               {isTyping ? "Đang nhập..." : info?.lastMsg}
             </p>

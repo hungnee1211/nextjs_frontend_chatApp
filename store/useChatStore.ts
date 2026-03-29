@@ -6,15 +6,14 @@ import { create } from "zustand"
 interface ChatStore {
   currentUserId: string | null
   activeConversationId: string | null
-
   messagesByConversationId: Record<string, Message[]>
-
   conversations: Conversation[]
 
   openDirect: boolean
   openGroup: boolean
   isInfoOpen: boolean
 
+  // ACTIONS
   setConversations: (
     data:
       | Conversation[]
@@ -23,7 +22,6 @@ interface ChatStore {
 
   setCurrentUserId: (id: string) => void
   setActiveConversationId: (id: string | null) => void
-
   setMessages: (conversationId: string, messages: Message[]) => void
 
   addConversation: (conv: Conversation) => void
@@ -38,17 +36,27 @@ interface ChatStore {
 
   toggleInfo: () => void
   setInfoOpen: (v: boolean) => void
+
+  // Hàm mới thêm vào
+  reset: () => void
 }
 
-export const useChatStore = create<ChatStore>((set) => ({
+// Khai báo trạng thái mặc định để dùng cho hàm reset
+const initialState = {
   currentUserId: null,
   conversations: [],
   activeConversationId: null,
   messagesByConversationId: {},
-
   openDirect: false,
   openGroup: false,
   isInfoOpen: false,
+}
+
+export const useChatStore = create<ChatStore>((set) => ({
+  ...initialState,
+
+  // ================= RESET =================
+  reset: () => set(initialState),
 
   // ================= UI =================
   toggleInfo: () => set((s) => ({ isInfoOpen: !s.isInfoOpen })),
@@ -79,28 +87,28 @@ export const useChatStore = create<ChatStore>((set) => ({
     })),
 
   // ================= MESSAGE =================
-setMessages: (conversationId, messages) =>
-  set((state) => {
-    const last = messages.length > 0 ? messages[messages.length - 1] : null;
+  setMessages: (conversationId, messages) =>
+    set((state) => {
+      const last = messages.length > 0 ? messages[messages.length - 1] : null;
 
-    return {
-      messagesByConversationId: {
-        ...state.messagesByConversationId,
-        [conversationId]: messages,
-      },
-      conversations: state.conversations.map((c): Conversation =>
-        c._id === conversationId
-          ? ({
+      return {
+        messagesByConversationId: {
+          ...state.messagesByConversationId,
+          [conversationId]: messages,
+        },
+        conversations: state.conversations.map((c): Conversation =>
+          c._id === conversationId
+            ? ({
               ...c,
               lastMessage: last,
               lastMessageAt: last ? last.createdAt : c.lastMessageAt,
             } as Conversation)
-          : c
-      ),
-    };
-  }),
+            : c
+        ),
+      };
+    }),
 
-addConversation: (conv) =>
+  addConversation: (conv) =>
     set((state) => {
       const exist = state.conversations.find(
         (c) => c._id === conv._id
@@ -123,64 +131,67 @@ addConversation: (conv) =>
       }
     }),
 
-addMessage: (msg: Message) =>
-  set((state) => {
-    const conversationId = msg.conversationId;
-    const currentMsgs = state.messagesByConversationId[conversationId] || [];
+  addMessage: (msg: Message) =>
+    set((state) => {
+      const conversationId = msg.conversationId;
+      const currentMsgs = state.messagesByConversationId[conversationId] || [];
 
-    const isDuplicate = currentMsgs.some(
-      (m) => m._id === msg._id || (msg.tempId && m.tempId === msg.tempId)
-    );
+      const isDuplicate = currentMsgs.some(
+        (m) => m._id === msg._id || (msg.tempId && m.tempId === msg.tempId)
+      );
 
-    let newMsgs = currentMsgs;
-    if (msg.tempId && currentMsgs.some((m) => m.tempId === msg.tempId)) {
-      newMsgs = currentMsgs.map((m) => (m.tempId === msg.tempId ? msg : m));
-    } else if (!isDuplicate) {
-      newMsgs = [...currentMsgs, msg];
-    } else {
-      return state;
-    }
+      let newMsgs = currentMsgs;
+      if (msg.tempId && currentMsgs.some((m) => m.tempId === msg.tempId)) {
+        newMsgs = currentMsgs.map((m) => (m.tempId === msg.tempId ? msg : m));
+      } else if (!isDuplicate) {
+        newMsgs = [...currentMsgs, msg];
+      } else {
+        return state;
+      }
 
-    const updatedConvs = state.conversations.map((c): Conversation => {
-      if (c._id !== conversationId) return c;
+      const updatedConvs = state.conversations.map((c): Conversation => {
+        if (c._id !== conversationId) return c;
 
-      const isNotMe = msg.senderId !== state.currentUserId;
-      const isNotActive = state.activeConversationId !== conversationId;
+        const isNotMe = msg.senderId !== state.currentUserId;
+        const isNotActive = state.activeConversationId !== conversationId;
+        const shouldIncrease = isNotMe && isNotActive;
 
-      // Xử lý participants dựa trên type của conversation
-      const updatedParticipants = (c.participants as any[]).map((p) => {
-        const pId = typeof p.userId === "string" ? p.userId : p.userId._id;
-        if (pId === state.currentUserId && isNotMe && isNotActive) {
-          return { ...p, unreadCount: (p.unreadCount || 0) + 1 };
+        const updatedParticipants = (c.participants as any[]).map((p) => {
+          const pId = typeof p.userId === "string" ? p.userId : p.userId._id;
+          if (pId === state.currentUserId && shouldIncrease) {
+            return { ...p, unreadCount: (p.unreadCount || 0) + 1 };
+          }
+          return p;
+        });
+
+        let rootUnreadCount = (c as any).unreadCount;
+        if (rootUnreadCount !== undefined && shouldIncrease) {
+          rootUnreadCount += 1;
         }
-        return p;
+
+        return {
+          ...c,
+          lastMessage: msg,
+          lastMessageAt: msg.createdAt,
+          participants: updatedParticipants,
+          ...(rootUnreadCount !== undefined && { unreadCount: rootUnreadCount })
+        } as Conversation;
       });
 
-      // Trả về đúng kiểu Conversation (ép kiểu qua any để tránh TS bắt bẻ cấu trúc Participant mix)
+      const sortedConvs = [...updatedConvs].sort((a, b) => {
+        const timeA = new Date(a.lastMessageAt || 0).getTime();
+        const timeB = new Date(b.lastMessageAt || 0).getTime();
+        return timeB - timeA;
+      });
+
       return {
-        ...c,
-        lastMessage: msg,
-        lastMessageAt: msg.createdAt,
-        participants: updatedParticipants,
-      } as Conversation;
-    });
-
-    // Sắp xếp lại danh sách
-    const sortedConvs = [...updatedConvs].sort((a, b) => {
-      const timeA = new Date(a.lastMessageAt || 0).getTime();
-      const timeB = new Date(b.lastMessageAt || 0).getTime();
-      return timeB - timeA;
-    });
-
-    return {
-      messagesByConversationId: {
-        ...state.messagesByConversationId,
-        [conversationId]: newMsgs,
-      },
-      conversations: sortedConvs,
-    };
-  }),
-
+        messagesByConversationId: {
+          ...state.messagesByConversationId,
+          [conversationId]: newMsgs,
+        },
+        conversations: sortedConvs,
+      };
+    }),
 
   updateLastMessage: (conversationId, msg) =>
     set((state) => {
@@ -188,10 +199,10 @@ addMessage: (msg: Message) =>
         .map((c) =>
           c._id === conversationId
             ? {
-                ...c,
-                lastMessage: msg,
-                lastMessageAt: msg.createdAt,
-              }
+              ...c,
+              lastMessage: msg,
+              lastMessageAt: msg.createdAt,
+            }
             : c
         )
         .sort(

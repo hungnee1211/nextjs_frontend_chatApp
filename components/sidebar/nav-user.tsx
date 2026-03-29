@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import axios from "axios"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { User } from "@/lib/types/user"
@@ -20,7 +19,8 @@ interface Props {
 }
 
 export function NavUser({ user: initialUser }: Props) {
-  const { setCurrentUserId } = useChatStore()
+  // Lấy hàm reset từ useChatStore
+  const { setCurrentUserId, reset: resetChatStore } = useChatStore()
   const { setUser, user } = useUserStore()
   const router = useRouter()
   
@@ -34,10 +34,18 @@ export function NavUser({ user: initialUser }: Props) {
         {},
         { withCredentials: true }
       )
-      toast.success("Đã đăng xuất")
+
+      // 🔥 QUAN TRỌNG: Reset toàn bộ dữ liệu chat và user trong Store
+      resetChatStore() 
+      setUser(null) 
+
+      toast.success("Đã đăng xuất thành công")
+      
+      // Sử dụng replace để người dùng không thể bấm Back lại trang chat
       router.replace("/signin")
     } catch (err) {
       toast.error("Lỗi khi đăng xuất")
+      console.error("Logout error:", err)
     }
   }
 
@@ -65,7 +73,7 @@ export function NavUser({ user: initialUser }: Props) {
 
   return (
     <>
-      <div className="flex items-center justify-between w-full p-2.5  bg-muted shadow-sm hover:shadow-md transition-all border-border/50">
+      <div className="flex items-center justify-between w-full p-2.5 bg-muted shadow-sm hover:shadow-md transition-all border-border/50">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-primary/10 bg-muted shrink-0 flex items-center justify-center shadow-sm">
             {user.avatarUrl ? (
@@ -104,8 +112,7 @@ export function NavUser({ user: initialUser }: Props) {
                 className="justify-start gap-2.5 h-10 text-sm font-medium rounded-lg"
                 onClick={() => setIsEditModalOpen(true)}
               >
-                <UserPen className="w-4 h-4 text-primary" />
-                Chỉnh sửa hồ sơ
+                <PopOverItem icon={<UserPen className="w-4 h-4 text-primary" />} label="Chỉnh sửa hồ sơ" />
               </Button>
               <div className="h-px bg-border/50 my-1 mx-1" />
               <Button
@@ -130,5 +137,15 @@ export function NavUser({ user: initialUser }: Props) {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+// Component phụ trợ để giao diện sạch hơn
+function PopOverItem({ icon, label }: { icon: React.ReactNode, label: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      {icon}
+      <span>{label}</span>
+    </div>
   )
 }
