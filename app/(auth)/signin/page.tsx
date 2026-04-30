@@ -13,124 +13,108 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import axiosClient from "@/lib/axios_config"
-import axios from "axios"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 
-
-
-
-
 const SignInPage = () => {
 
-    const [username , setUserName] = useState("")
-    const [password , setPassword] = useState("")
-
-    const router = useRouter()
+    const [username, setUserName] = useState("")
+    const [password, setPassword] = useState("")
+    const [loading, setLoading] = useState(false)
 
     const LogIn = async () => {
+        setLoading(true)
         try {
-            const res = await axiosClient.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/signin` , {
-                username , 
-                password
-            }, { withCredentials: true })
-           
+            await axiosClient.post(
+                `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/signin`,
+                { username, password },
+                { withCredentials: true }
+            )
 
-            console.log("Đăng nhập thành công")
             toast.success("Đăng nhập thành công")
-                setTimeout(() => {
-               router.replace('/')
-                }, 500)
+
+            window.location.href = "/"
 
         } catch (error) {
-            console.log("Lỗi đăng nhập" , error)
-            toast.error("Lỗi đăng nhập")
+            toast.error("Sai tài khoản hoặc mật khẩu")
+        } finally {
+            setLoading(false)
         }
     }
-
-
-
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await LogIn()
-        } catch (error) {
-            console.log("Lỗi submit " , error)
-        }
+        e.preventDefault()
+        await LogIn()
     }
 
-
     return (
-        <div  className="items-center justify-center flex mt-40">
-            <Card className="w-full max-w-sm">
-                <CardHeader>
-                    <CardTitle>Login to your account</CardTitle>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+            <Card className="w-full max-w-sm shadow-lg rounded-2xl">
+                
+                <CardHeader className="space-y-2 text-center">
+                    <CardTitle className="text-2xl font-bold">
+                        Đăng nhập
+                    </CardTitle>
                     <CardDescription>
-                        Enter your username below to login to your account
+                        Nhập tài khoản để tiếp tục
                     </CardDescription>
+
                     <CardAction>
                         <Link href="/signup">
-                            <Button> Sign Up
+                            <Button variant="outline" size="sm">
+                                Sign Up
                             </Button>
                         </Link>
                     </CardAction>
                 </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit}>
-                        <div className="flex flex-col gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="username">Username</Label>
-                                <Input
-                                    id="username"
-                                    type="username"
-                                    placeholder="username"
-                                    required
-                                    value={username}
-                                    onChange={(u) => setUserName(u.target.value)}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
-                                    <a
-                                        href="#"
-                                        className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                                    >
-                                        Forgot your password?
-                                    </a>
-                                </div>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    required
-                                    placeholder="password"
-                                    value={password}
-                                    onChange={(p)=> setPassword(p.target.value)}
 
-                                />
-                            </div>
+                <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+
+                        <div className="space-y-2">
+                            <Label htmlFor="username">Username</Label>
+                            <Input
+                                id="username"
+                                placeholder="username"
+                                value={username}
+                                onChange={(e) => setUserName(e.target.value)}
+                                required
+                            />
                         </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                placeholder="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        <Button
+                            type="submit"
+                            className="w-full mt-2"
+                            disabled={loading}
+                        >
+                            {loading ? "Đang đăng nhập..." : "Login"}
+                        </Button>
+
                     </form>
                 </CardContent>
-                <CardFooter className="flex-col gap-2">
-                    <Button 
-                    type="submit" 
-                    className="w-full"
-                    >
-                        Login
-                    </Button>
+
+                <CardFooter className="flex flex-col gap-2">
                     <Button variant="outline" className="w-full">
                         Login with Google
                     </Button>
                 </CardFooter>
+
             </Card>
         </div>
-
     )
 }
-
 
 export default SignInPage
