@@ -1,47 +1,29 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
- 
-// This function can be marked `async` if using `await` inside
-export function proxy(request: NextRequest) {
 
+export function proxy(request: NextRequest) {
   const accessToken = request.cookies.get('accessToken')?.value
   const refreshToken = request.cookies.get('refreshToken')?.value
+  const { pathname } = request.nextUrl
 
-  
+  // 1. Nếu ĐÃ CÓ token mà lại đang đứng ở trang signin/signup
+  // THÊM ĐOẠN NÀY ĐỂ CHUYỂN VỀ TRANG CHỦ SAU KHI LOGIN
+  if ((accessToken || refreshToken) && (pathname === '/signin' || pathname === '/signup')) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
-  // CHỈ redirect khi MẤT CẢ HAI token
-  // Nếu mất Access nhưng còn Refresh -> Cho qua để Client tự Refresh
-  if (accessToken) {
-  return NextResponse.next();
-}
-
-if (!accessToken && refreshToken) {
-  return NextResponse.next();
-}
-
-  // Chỉ khi mất cả hai mới đá ra signin
-  if (!accessToken && !refreshToken) {
+  // 2. Nếu MẤT CẢ HAI token và đang truy cập trang bảo mật (không phải signin/signup)
+  if (!accessToken && !refreshToken && pathname !== '/signin' && pathname !== '/signup') {
     return NextResponse.redirect(new URL('/signin', request.url))
   }
 
+  // Cho phép đi tiếp nếu đang có token hoặc đang ở trang login
   return NextResponse.next()
 }
 
- 
-// Alternatively, you can use a default export:
-// export default function proxy(request: NextRequest) { ... }
- 
 export const config = {
   matcher: [
-    /*
-      Áp dụng cho TẤT CẢ route
-      NGOẠI TRỪ:
-      - _next (static, image)
-      - favicon
-      - file tĩnh: png, jpg, jpeg, svg, gif, webp
-      - css, js, map
-      - signin, signup (public page)
-    */
-    '/((?!_next/static|_next/image|favicon.ico|signin|signup|.*\\.(?:png|jpg|jpeg|svg|gif|webp|css|js|map)$).*)',
+    /* Áp dụng cho tất cả trừ file tĩnh */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|css|js|map)$).*)',
   ],
 }
