@@ -37,7 +37,7 @@ const SignInPage = () => {
 
             toast.success("Đăng nhập thành công")
 
-            window.location.href="/"
+            window.location.replace("/")
 
         } catch (error) {
             toast.error("Sai tài khoản hoặc mật khẩu")
