@@ -42,6 +42,6 @@ export const config = {
       - css, js, map
       - signin, signup (public page)
     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|css|js|map)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|signin|signup|.*\\.(?:png|jpg|jpeg|svg|gif|webp|css|js|map)$).*)',
   ],
 }
