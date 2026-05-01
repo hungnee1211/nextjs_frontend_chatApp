@@ -37,7 +37,7 @@ const SignInPage = () => {
 
             toast.success("Đăng nhập thành công")
 
-            router.push("/")
+            window.location.href="/"
 
         } catch (error) {
             toast.error("Sai tài khoản hoặc mật khẩu")
