@@ -6,12 +6,10 @@ export function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // ✅ Cho phép vào signin/signup
   if (pathname.startsWith('/signin') || pathname.startsWith('/signup')) {
     return NextResponse.next()
   }
 
-  // ❌ Chỉ chặn khi KHÔNG có refreshToken
   if (!refreshToken) {
     return NextResponse.redirect(new URL('/signin', request.url))
   }
